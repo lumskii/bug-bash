@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bug Bash!</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background-color: #d1cfcf;
+      color: rgb(0, 0, 0);
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+
+    .score-timer {
+      display: flex;
+      justify-content: space-between;
+      max-width: 400px;
+      margin: 0 auto 20px;
+      font-size: 1.2em;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 80px);
+      grid-gap: 15px;
+      justify-content: center;
+    }
+
+    .hole {
+      width: 80px;
+      height: 80px;
+      border: 2px solid #2953c5;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .bug {
+      color: limegreen;
+    }
+
+    .squashed {
+      color: lightgreen;
+    }
+
+    .bomb {
+      color: #ff3333;
+    }
+
+    .exploded {
+      color: orange;
+    }
+
+    #game-over {
+      margin-top: 20px;
+      font-size: 1.5em;
+      color: red;
+      font-weight: 600;
+    }
+
+    #score-update {
+      margin-top: 10px;
+      min-height: 1.5em;
+      font-size: 30px;
+      font-weight: bold;
+    }
+
+    #restart-btn {
+      margin-top: 20px;
+      padding: 10px 30px;
+      font-size: 1.2em;
+      font-family: inherit;
+      font-weight: bold;
+      background: #2953c5;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #restart-btn:hover {
+      background: #1d387e;
+    }
+  </style>
+</head>
+<body>
+  <h1>BUG BASH!</h1>
+  <div class="score-timer">
+    <div>Score: <span id="score">0</span></div>
+    <div>Time: <span id="timer">30</span>s</div>
+  </div>
+  <div class="grid" id="grid">
+    <!-- 12 Holes -->
+    <div class="hole" data-index="0"></div>
+    <div class="hole" data-index="1"></div>
+    <div class="hole" data-index="2"></div>
+    <div class="hole" data-index="3"></div>
+    <div class="hole" data-index="4"></div>
+    <div class="hole" data-index="5"></div>
+    <div class="hole" data-index="6"></div>
+    <div class="hole" data-index="7"></div>
+    <div class="hole" data-index="8"></div>
+    <div class="hole" data-index="9"></div>
+    <div class="hole" data-index="10"></div>
+    <div class="hole" data-index="11"></div>
+  </div>
+  <div id="game-over"></div>
+  <button id="restart-btn" onclick="restartGame()">Restart</button>
+  <div id="score-update" style="margin-top:10px; min-height:1.5em; font-size:1.2em;"></div>
+  <script>
+    const holes = document.querySelectorAll('.hole');
+    const scoreEl = document.getElementById('score');
+    const timerEl = document.getElementById('timer');
+    const gameOverEl = document.getElementById('game-over');
+    const scoreUpdateEl = document.getElementById('score-update');
+
+    let score = 0;
+    let timeLeft = 30;
+    let gameInterval;
+    let bugInterval;
+    let bombInterval;
+    let gameActive = true;
+
+    function randomHole() {
+      return holes[Math.floor(Math.random() * holes.length)];
+    }
+
+    function showScoreUpdate(msg, color) {
+      scoreUpdateEl.textContent = msg;
+      scoreUpdateEl.style.color = color;
+      setTimeout(() => {
+        // Only clear if not overwritten by a new update
+        if (scoreUpdateEl.textContent === msg) scoreUpdateEl.textContent = '';
+      }, 800);
+    }
+
+    function showBug() {
+      if (!gameActive) return;
+      const hole = randomHole();
+      if (hole.classList.contains('bug') || hole.classList.contains('bomb')) return;
+
+      hole.textContent = '🐛';
+      hole.classList.add('bug');
+
+      const hideTimer = setTimeout(() => {
+        if (hole.classList.contains('bug')) {
+          hole.textContent = '';
+          hole.classList.remove('bug');
+        }
+      }, 1000 + Math.random() * 1000);
+
+      hole.onclick = () => {
+        if (!hole.classList.contains('bug') || !gameActive) return;
+        score += 10;
+        scoreEl.textContent = score;
+        showScoreUpdate('+10!', 'limegreen');
+        hole.textContent = '💥';
+        hole.classList.remove('bug');
+        hole.classList.add('squashed');
+        setTimeout(() => {
+          hole.textContent = '';
+          hole.classList.remove('squashed');
+        }, 500);
+      };
+    }
+
+    function showBomb() {
+      if (!gameActive) return;
+      // 50% chance to spawn a bomb each interval
+      if (Math.random() < 0.5) return;
+      const hole = randomHole();
+      if (hole.classList.contains('bug') || hole.classList.contains('bomb')) return;
+
+      hole.textContent = '💣';
+      hole.classList.add('bomb');
+
+      const hideTimer = setTimeout(() => {
+        if (hole.classList.contains('bomb')) {
+          hole.textContent = '';
+          hole.classList.remove('bomb');
+        }
+      }, 1000 + Math.random() * 1000);
+
+      hole.onclick = () => {
+        if (!hole.classList.contains('bomb') || !gameActive) return;
+        score -= 50;
+        if (score < 0) score = 0;
+        scoreEl.textContent = score;
+        showScoreUpdate('-50!', '#ff3333');
+        hole.textContent = '💥';
+        hole.classList.remove('bomb');
+        hole.classList.add('exploded');
+        setTimeout(() => {
+          hole.textContent = '';
+          hole.classList.remove('exploded');
+        }, 500);
+      };
+    }
+
+    function clearHoles() {
+      holes.forEach(hole => {
+        hole.textContent = '';
+        hole.classList.remove('bug', 'squashed', 'bomb', 'exploded');
+        hole.onclick = null;
+      });
+    }
+
+    function startGame() {
+      score = 0;
+      scoreEl.textContent = score;
+      timeLeft = 30;
+      timerEl.textContent = timeLeft;
+      gameOverEl.textContent = '';
+      scoreUpdateEl.textContent = '';
+      gameActive = true;
+      clearHoles();
+
+      gameInterval = setInterval(() => {
+        timeLeft--;
+        timerEl.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(gameInterval);
+          clearInterval(bugInterval);
+          clearInterval(bombInterval);
+          gameActive = false;
+          gameOverEl.textContent = `Game Over! Final Score: ${score}`;
+        }
+      }, 1000);
+
+      bugInterval = setInterval(showBug, 600);
+      bombInterval = setInterval(showBomb, 900);
+    }
+
+    function restartGame() {
+      clearInterval(gameInterval);
+      clearInterval(bugInterval);
+      clearInterval(bombInterval);
+      startGame();
+    }
+
+    startGame();
+  </script>
+</body>
+</html>
